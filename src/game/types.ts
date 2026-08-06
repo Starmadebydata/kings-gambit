@@ -2,11 +2,14 @@ export type Side = 'w' | 'b';
 export type PieceType = 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
 export type Mode = 'computer' | 'local' | 'showcase';
 export type GameKind = 'chess' | 'xiangqi' | 'go';
+/** AI 难度：1=Easy，2=Medium，3=Hard。 */
+export type Level = 1 | 2 | 3;
 
 export interface GameConfig {
   mode: Mode;
   minutes: number; // 0 = no clock
   goSize?: number; // go board size: 9 / 13 / 19
+  level?: Level; // AI difficulty (default 2)
 }
 
 export interface Settings {

@@ -10,7 +10,7 @@ import { Hud } from './ui/Hud';
 import { GameOverModal, ImportModal, ExportModal, SettingsModal } from './ui/Modals';
 
 const DEFAULT_SETTINGS: Settings = { cameraSwing: true, sound: true, coords: true, legalMoves: true };
-const DEFAULT_CONFIG: GameConfig = { mode: 'computer', minutes: 0 };
+const DEFAULT_CONFIG: GameConfig = { mode: 'computer', minutes: 0, level: 2 };
 const LS_SETTINGS = 'kg-settings';
 const LS_CONFIG = 'kg-config';
 

@@ -524,11 +524,11 @@ export class ChessGame {
     const turn = this.chess.turn();
     const isAI = this.config.mode === 'showcase' || (this.config.mode === 'computer' && turn === 'b');
     if (!isAI) return;
-    const depth = this.config.mode === 'showcase' ? 2 : 3;
+    const level = this.config.level ?? 2;
     const jitter = this.config.mode === 'showcase' ? 60 : 0;
     this.aiTimer = setTimeout(() => {
       if (this.over || this.screen !== 'game') return;
-      const mv = findBestMove(this.chess, depth, jitter);
+      const mv = findBestMove(this.chess, { level, jitter });
       if (mv) this.doMove(mv);
     }, this.config.mode === 'showcase' ? 1000 : 650);
   }

@@ -409,7 +409,10 @@ export class GoGame3D {
     this.aiTimer = setTimeout(() => {
       this.aiTimer = null;
       if (this.over || this.screen !== 'game') return;
-      const mv = findBestMove(this.go);
+      const mv = findBestMove(this.go, {
+        level: this.config.level ?? 2,
+        jitter: this.config.mode === 'showcase' ? 60 : 0,
+      });
       if (mv) this.doPlay(mv[0], mv[1]);
       else this.doPass();
     }, this.config.mode === 'showcase' ? 900 : 700);

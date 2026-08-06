@@ -1,4 +1,4 @@
-import { GameConfig, GameKind, Mode } from '../game/types';
+import { GameConfig, GameKind, Level, Mode } from '../game/types';
 import type { FamousGame } from '../game/famousGame';
 import type { GoFamousGame } from '../game/goFamousGames';
 import { IconCpu, IconUsers, IconEye, IconGear, IconCrown, IconHourglass, IconPlay, IconBook } from './Icons';
@@ -10,6 +10,12 @@ const MODES: { id: Mode; label: string; icon: React.ReactNode; desc: string }[] 
 ];
 
 const CLOCKS = [0, 5, 10, 15];
+
+const LEVELS: { id: Level; label: string }[] = [
+  { id: 1, label: 'Easy' },
+  { id: 2, label: 'Medium' },
+  { id: 3, label: 'Hard' },
+];
 
 export function MainMenu(props: {
   config: GameConfig;
@@ -51,6 +57,20 @@ export function MainMenu(props: {
           ))}
         </div>
         <p className="desc">{MODES.find(m => m.id === config.mode)!.desc}</p>
+        {config.mode === 'computer' && (
+          <>
+            <div className="clock-label"><IconCpu size={12} /> AI Level</div>
+            <div className="tabs small">
+              {LEVELS.map(l => (
+                <button key={l.id}
+                  className={'tab' + ((config.level ?? 2) === l.id ? ' active' : '')}
+                  onClick={() => onConfig({ ...config, level: l.id })}>
+                  <span>{l.label}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
         <div className="clock-label"><IconHourglass size={12} /> Hourglass</div>
         <div className="tabs small">
           {CLOCKS.map(c => (
