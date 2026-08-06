@@ -1,0 +1,38 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# logs & env
+*.log
+.env
+.env.local
+
+# macOS
+.DS_Store
+
+# editor
+.idea/
+.vscode/
+*.swp
+
+# 调试截图（验证/录制管线运行时产物，可随时重新生成）
+_tmp_*.png
+_old_video_frame.png
+gf_step*.png
+step*.png
+refine_*.png
+go_final_check.png
+xq_*.png
+
+# 内部开发资产：交接文档、验证/生成/录制脚本、SGF 源数据、素材与视频（仅本地，不推送）
+/HANDOFF.md
+/_*.mjs
+/_*.cjs
+/_*.ts
+/_sgf_go*.txt
+/_fx_demo/
+/_cannon_demo/
+/_ref_frames/
+/*.mp4
