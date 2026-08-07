@@ -3,6 +3,7 @@ import { ChessGame } from './game/Chess3D';
 import { XqGame } from './game/Xq3D';
 import { GoGame3D } from './game/Go3D';
 import { FAMOUS_GAMES, type FamousGame } from './game/famousGame';
+import { CHESS_FAMOUS_GAMES, type ChessFamousGame } from './game/chessFamousGames';
 import { GO_FAMOUS_GAMES, type GoFamousGame } from './game/goFamousGames';
 import { GameConfig, GameKind, HudState, Settings } from './game/types';
 import { MainMenu } from './ui/MainMenu';
@@ -83,13 +84,17 @@ export default function App() {
     if (kindRef.current !== k) createGame(k);
   };
 
-  const startFamousReplay = (game: FamousGame | GoFamousGame, autoplay: boolean) => {
+  const startFamousReplay = (game: FamousGame | GoFamousGame | ChessFamousGame, autoplay: boolean) => {
     if (kindRef.current === 'go') {
       (gameRef.current as GoGame3D).startScript(game as GoFamousGame, autoplay, `${game.source} · ${game.title}`);
       return;
     }
-    if (kindRef.current !== 'xiangqi') { setKind('xiangqi'); createGame('xiangqi'); }
-    (gameRef.current as XqGame).startScript(game as FamousGame, autoplay, `${game.source} · ${game.title}`);
+    if (kindRef.current === 'xiangqi') {
+      (gameRef.current as XqGame).startScript(game as FamousGame, autoplay, `${game.source} · ${game.title}`);
+      return;
+    }
+    if (kindRef.current !== 'chess') { setKind('chess'); createGame('chess'); }
+    (gameRef.current as ChessGame).startScript(game as ChessFamousGame, autoplay, `${game.source} · ${game.title}`);
   };
 
   const fullscreen = () => {
@@ -109,6 +114,7 @@ export default function App() {
             onKind={onKind}
             onStart={() => g().startGame(config)}
             games={FAMOUS_GAMES}
+            chessGames={CHESS_FAMOUS_GAMES}
             goGames={GO_FAMOUS_GAMES}
             onReplay={startFamousReplay}
             onImportScript={() => setShowImport(true)}
@@ -129,11 +135,11 @@ export default function App() {
             onSettings={() => setShowSettings(true)}
             onToggleSound={() => applySettings({ ...settings, sound: !settings.sound })}
             onToggleCoords={() => applySettings({ ...settings, coords: !settings.coords })}
-            onScriptToggle={() => (gameRef.current as XqGame | GoGame3D).scriptTogglePlay()}
-            onScriptStep={(d) => (gameRef.current as XqGame | GoGame3D).scriptStep(d)}
-            onScriptGoto={(i) => (gameRef.current as XqGame | GoGame3D).scriptGoTo(i)}
-            onScriptExit={() => (gameRef.current as XqGame | GoGame3D).scriptExit()}
-            onScriptBranch={(ply) => (gameRef.current as XqGame | GoGame3D).scriptSwitchBranch(ply)}
+            onScriptToggle={() => (gameRef.current as ChessGame | XqGame | GoGame3D).scriptTogglePlay()}
+            onScriptStep={(d) => (gameRef.current as ChessGame | XqGame | GoGame3D).scriptStep(d)}
+            onScriptGoto={(i) => (gameRef.current as ChessGame | XqGame | GoGame3D).scriptGoTo(i)}
+            onScriptExit={() => (gameRef.current as ChessGame | XqGame | GoGame3D).scriptExit()}
+            onScriptBranch={(ply) => (gameRef.current as ChessGame | XqGame | GoGame3D).scriptSwitchBranch(ply)}
             onScriptImport={() => setShowImport(true)}
             onScriptExport={() => setShowExport(true)}
             onSetupDelete={() => (gameRef.current as XqGame).setupDeleteSelected()}
@@ -161,13 +167,26 @@ export default function App() {
         )}
         {showImport && (
           <ImportModal
-            onImport={(t) => (gameRef.current as XqGame).scriptImportText(t)}
+            game={kindRef.current}
+            onImport={(t) => {
+              const k = kindRef.current;
+              if (k === 'chess') return (gameRef.current as ChessGame).scriptImportText(t);
+              if (k === 'go') return (gameRef.current as GoGame3D).scriptImportText(t);
+              return (gameRef.current as XqGame).scriptImportText(t);
+            }}
             onClose={() => setShowImport(false)}
           />
         )}
         {showExport && (
           <ExportModal
-            text={(gameRef.current as XqGame | GoGame3D).scriptExportText()}
+            game={kindRef.current}
+            text={
+              kindRef.current === 'go'
+                ? (gameRef.current as GoGame3D).scriptExportText()
+                : kindRef.current === 'xiangqi'
+                  ? (gameRef.current as XqGame).scriptExportText()
+                  : (gameRef.current as ChessGame).scriptExportText()
+            }
             onClose={() => setShowExport(false)}
           />
         )}

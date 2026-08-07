@@ -20,6 +20,12 @@ export function ScriptPanel(props: {
   const { info } = props;
   const listRef = useRef<HTMLDivElement>(null);
   const isGo = info.game === 'go';
+  // 国际象棋与象棋同为两列（白/黑、红/黑）；围棋单列每手一行
+  const twoCol = !isGo;
+  const whiteFirst = info.game === 'chess';
+  // 表头：回合/白方/黑方（国象）| 回合/红方/黑方（象棋）| 手/着法（围棋）
+  const colLeft = twoCol ? (whiteFirst ? '白方' : '红方') : '手';
+  const colRight = twoCol ? (whiteFirst ? '黑方' : '黑方') : '着法';
 
   // build rounds: 象棋 [roundNo, redPly(1-based), blackPly]；围棋单列每手一行（black=0）
   const rounds: { no: number; red: number; black: number }[] = isGo
@@ -80,7 +86,7 @@ export function ScriptPanel(props: {
 
       <div className="script-list" ref={listRef}>
         <div className="script-list-head">
-          {isGo ? <><span>手</span><span>着法</span></> : <><span>回合</span><span>红方</span><span>黑方</span></>}
+          {isGo ? <><span>手</span><span>着法</span></> : <><span>回合</span><span>{colLeft}</span><span>{colRight}</span></>}
         </div>
         {rounds.map(rd => (
           <div key={rd.no} className={'round' + (info.onMain && (info.index === rd.red || (rd.black && info.index === rd.black)) ? ' active' : '')}>

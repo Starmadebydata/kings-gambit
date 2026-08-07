@@ -5,6 +5,8 @@
 import type { Side } from './types';
 import type { XqType } from './pieceModels';
 import { Xiangqi, XQ_CHAR, type XqMove, type XqPiece } from './xiangqi';
+import { WUDI_GAMES } from './wudiGames';
+import { MEIHUA_GAMES } from './meihuaGames';
 
 export interface ScriptMove {
   from: [number, number]; // [rank, file]
@@ -208,7 +210,7 @@ const ZI_CHU: FamousGame = {
   ]
 };
 
-export const FAMOUS_GAMES: FamousGame[] = [QI_MA, SHUN_PAO, PING_FENG, ZI_CHU];
+export const FAMOUS_GAMES: FamousGame[] = [QI_MA, SHUN_PAO, PING_FENG, ZI_CHU, ...MEIHUA_GAMES, ...WUDI_GAMES];
 
 /** Backward-compatible alias: the first famous game. */
 export const FAMOUS_GAME = QI_MA;

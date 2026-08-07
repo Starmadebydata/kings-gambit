@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GoGame } from './go';
 import { findBestMove } from './goAi';
-import { goTreeFromGame, goMainline, goExportText, goNote, type GoScriptTree } from './goFamousGame';
+import { goTreeFromGame, goMainline, goExportText, goNote, parseSgfText, type GoScriptTree } from './goFamousGame';
 import type { GoFamousGame } from './goFamousGames';
 import { buildEnvironment, type Environment } from './environment';
 import { FxSystem } from './fx';
@@ -649,6 +649,17 @@ export class GoGame3D {
     const sc = this.script;
     if (!sc) return '';
     return goExportText(sc.tree, sc.path);
+  }
+
+  /** 导入 SGF 文本为新的打谱棋谱（支持 9/13/19 路）。 */
+  scriptImportText(text: string): { ok: boolean; error: string | null } {
+    const { tree, error } = parseSgfText(text);
+    if (!tree) return { ok: false, error };
+    this.startGame({ mode: 'local', minutes: 0, goSize: tree.size ?? 19 });
+    this.script = { tree, path: goMainline(tree), i: 0, playing: false, main: goMainline(tree) };
+    this.replayNote = tree.title;
+    this.emit();
+    return { ok: true, error: null };
   }
 
   private scheduleScriptStep(seconds: number) {

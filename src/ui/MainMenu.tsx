@@ -1,5 +1,6 @@
 import { GameConfig, GameKind, Level, Mode } from '../game/types';
 import type { FamousGame } from '../game/famousGame';
+import type { ChessFamousGame } from '../game/chessFamousGame';
 import type { GoFamousGame } from '../game/goFamousGames';
 import { IconCpu, IconUsers, IconEye, IconGear, IconCrown, IconHourglass, IconPlay, IconBook } from './Icons';
 
@@ -24,13 +25,14 @@ export function MainMenu(props: {
   onKind: (k: GameKind) => void;
   onStart: () => void;
   games?: FamousGame[];
+  chessGames?: ChessFamousGame[];
   goGames?: GoFamousGame[];
-  onReplay?: (game: FamousGame | GoFamousGame, autoplay: boolean) => void;
+  onReplay?: (game: FamousGame | GoFamousGame | ChessFamousGame, autoplay: boolean) => void;
   onImportScript?: () => void;
   onSetupStudy?: () => void;
   onSettings: () => void;
 }) {
-  const { config, onConfig, kind, onKind, games, goGames } = props;
+  const { config, onConfig, kind, onKind, games, chessGames, goGames } = props;
   return (
     <div className="menu-wrap">
       <h1 className="title"><IconCrown size={30} /> King's Gambit</h1>
@@ -98,6 +100,38 @@ export function MainMenu(props: {
         <button className="btn-gold" onClick={props.onStart}>
           <IconCrown size={15} /> Take the Field
         </button>
+        {kind === 'chess' && chessGames && chessGames.length > 0 && props.onReplay && (
+          <div className="menu-games">
+            <div className="clock-label"><IconBook size={12} /> Famous Games</div>
+            {chessGames.map(g => (
+              <div key={g.id} className="game-row">
+                <div className="game-info">
+                  <span className="game-title">{g.title}</span>
+                  <span className="game-meta">{g.source} · {g.result}</span>
+                </div>
+                <div className="game-actions">
+                  <button className="mini-btn" title="逐步打谱" onClick={() => props.onReplay!(g, false)}>
+                    <IconBook size={12} /> Study
+                  </button>
+                  <button className="mini-btn gold" title="自动演示整局" onClick={() => props.onReplay!(g, true)}>
+                    <IconPlay size={12} /> Auto Play
+                  </button>
+                </div>
+              </div>
+            ))}
+            <div className="game-row tools-row">
+              <div className="game-info">
+                <span className="game-title">棋谱工具</span>
+                <span className="game-meta">导入 PGN / FEN · 打谱研究</span>
+              </div>
+              <div className="game-actions">
+                <button className="mini-btn" title="导入标准 PGN 或 FEN 起始局面" onClick={() => props.onImportScript?.()}>
+                  <IconBook size={12} /> 导入棋谱
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {kind === 'go' && goGames && goGames.length > 0 && props.onReplay && (
           <div className="menu-games">
             <div className="clock-label"><IconBook size={12} /> 名局棋谱</div>

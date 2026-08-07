@@ -6,6 +6,7 @@ import { buildPieceModel, PIECE_HEIGHT } from './pieceModels';
 import { FxSystem } from './fx';
 import { makeBadgeTexture, makeBorderTexture, makeCoordTexture, makeGlowTexture, makeRingTexture } from './textures';
 import { findBestMove } from './ai';
+import { chessMainline, chessTreeFromGame, exportPgnText, parsePgnText, type ChessFamousGame, type ChessScriptTree } from './chessFamousGame';
 import { sfx } from './audio';
 import { PIECE_GLYPH, PIECE_VALUE, type GameConfig, type HudState, type PieceType, type Settings, type Side } from './types';
 
@@ -93,6 +94,16 @@ export class ChessGame {
   private camFlip = false;
   private downPos = { x: 0, y: 0 };
   private disposed = false;
+  private replayNote: string | null = null;
+  private script: {
+    tree: ChessScriptTree;
+    path: number[]; // 当前路径（树节点下标）
+    i: number; // 当前着（path 下标）
+    playing: boolean;
+    main: number[]; // 主线路径（onMain 高亮用）
+  } | null = null;
+  private scriptTimer: ReturnType<typeof setTimeout> | null = null;
+  private pendingOver: { winner: Side | null; reason: string } | null = null;
 
   constructor(private container: HTMLElement, private onState: (s: HudState) => void) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -299,6 +310,7 @@ export class ChessGame {
 
   private humanTurn(): boolean {
     if (this.screen !== 'game' || this.over || this.locked) return false;
+    if (this.script) return true; // 打谱模式：自由走子记录进变着树
     if (this.config.mode === 'showcase') return false;
     if (this.config.mode === 'computer' && this.chess.turn() === 'b') return false;
     return true;
@@ -393,11 +405,13 @@ export class ChessGame {
     });
   }
 
-  doMove(mv: Move) {
+  doMove(mv: Move, sync = false) {
     const mover = this.pieces.get(mv.from);
     if (!mover) return;
     this.locked = true;
     this.clearSelection();
+    // 打谱研究：自由走子记录进变着树（自动演示走主变，由 scriptTick 自行维护 path）
+    if (this.script && !sync) this.scriptApplyMove(mv);
 
     const capSq = (mv.flags.includes('e') ? mv.to[0] + mv.from[1] : mv.to) as Square;
     const victim = mv.captured ? this.pieces.get(capSq) : undefined;
@@ -484,21 +498,14 @@ export class ChessGame {
     } else this.checkMark.visible = false;
 
     // game over?
-    if (this.chess.isCheckmate()) {
-      this.over = { winner: this.chess.turn() === 'w' ? 'b' : 'w', reason: 'Checkmate' };
-      sfx.over(true);
-    } else if (this.chess.isStalemate()) {
-      this.over = { winner: null, reason: 'Stalemate' };
-      sfx.over(false);
-    } else if (this.chess.isDraw()) {
-      this.over = { winner: null, reason: this.chess.isInsufficientMaterial() ? 'Insufficient material' : 'Draw' };
-      sfx.over(false);
-    }
+    this.over = this.overInfo();
+    if (this.over) sfx.over(this.over.winner !== null);
 
     this.locked = false;
     this.emit();
     if (!this.over) {
-      this.swingTo(this.chess.turn());
+      // 打谱模式：相机交给用户控制，不自动摆动视角
+if (!this.script) this.swingTo(this.chess.turn());
       this.maybeAI();
     }
   }
@@ -552,6 +559,7 @@ export class ChessGame {
 
   // ---------- public API ----------
   startGame(config: GameConfig) {
+    this.stopScript();
     this.config = config;
     this.chess = new Chess();
     this.over = null;
@@ -571,6 +579,7 @@ export class ChessGame {
   }
 
   toMenu() {
+    this.stopScript();
     this.screen = 'menu';
     if (this.aiTimer) clearTimeout(this.aiTimer);
     this.over = null;
@@ -579,7 +588,7 @@ export class ChessGame {
   }
 
   undo() {
-    if (this.screen !== 'game' || this.over || this.locked) return;
+    if (this.screen !== 'game' || this.over || this.locked || this.script) return;
     if (this.config.mode === 'showcase') return;
     if (this.aiTimer) clearTimeout(this.aiTimer);
     if (this.config.mode === 'computer') {
@@ -612,6 +621,224 @@ export class ChessGame {
 
   newGame() { this.startGame(this.config); }
 
+  // ---------- famous-game script (study / playback) ----------
+
+  /** Load a famous game. autoplay=true starts the cinematic demo; otherwise the user studies move by move. */
+  startScript(game: ChessFamousGame, autoplay = false, intro = '') {
+    this.startGame({ mode: 'local', minutes: 0 });
+    const tree = chessTreeFromGame(game);
+    this.script = { tree, path: chessMainline(tree), i: 0, playing: false, main: chessMainline(tree) };
+    this.pendingOver = null;
+    this.replayNote = intro || game.title;
+    this.emit();
+    if (autoplay) this.scriptTogglePlay();
+  }
+
+  /** Compatibility wrapper: cinematic auto-play of a famous game. */
+  startReplay(game: ChessFamousGame, intro = '') {
+    this.startScript(game, true, intro);
+  }
+
+  private stopScript() {
+    if (this.scriptTimer) clearTimeout(this.scriptTimer);
+    this.scriptTimer = null;
+    this.script = null;
+    this.replayNote = null;
+    this.pendingOver = null;
+  }
+
+  /** Leave study mode and return to the main menu. */
+  scriptExit() {
+    if (!this.script) return;
+    this.stopScript();
+    this.toMenu();
+  }
+
+  /** Play / pause the scripted game. */
+  scriptTogglePlay() {
+    const sc = this.script;
+    if (!sc || this.screen !== 'game') return;
+    if (this.pendingOver) return; // result reveal in progress
+    if (sc.playing) {
+      sc.playing = false;
+      if (this.scriptTimer) clearTimeout(this.scriptTimer);
+      this.scriptTimer = null;
+      this.emit();
+      return;
+    }
+    sc.playing = true;
+    if (sc.i === 0) this.replayNote = sc.tree.title;
+    this.emit();
+    this.scheduleScriptStep(sc.i === 0 ? 3.2 : 0.8);
+  }
+
+  /** Jump to ply `target` (0 = initial position, max = path end). Stops playback. */
+  scriptGoTo(target: number) {
+    const sc = this.script;
+    if (!sc || this.screen !== 'game') return;
+    if (this.scriptTimer) clearTimeout(this.scriptTimer);
+    this.scriptTimer = null;
+    sc.playing = false;
+    const t = Math.max(0, Math.min(sc.path.length - 1, Math.round(target)));
+    if (t === sc.i) { this.emit(); return; }
+    this.rebuildFromPath(t);
+  }
+
+  /** Rebuild the engine + pieces from the tree root along `path` up to `upTo` nodes. */
+  private rebuildFromPath(upTo: number) {
+    const sc = this.script!;
+    this.chess = sc.tree.rootFen ? new Chess(sc.tree.rootFen) : new Chess();
+    for (let j = 1; j <= upTo; j++) {
+      const sm = sc.tree.nodes[sc.path[j]].move;
+      if (!sm) break;
+      const mv = this.chess.move({ from: sm.from, to: sm.to, promotion: sm.promotion });
+      if (!mv) break;
+    }
+    sc.i = upTo;
+    this.rebuildPieces();
+    this.lastGroup.clear();
+    const hist = this.chess.history({ verbose: true });
+    if (hist.length) {
+      const lm = hist[hist.length - 1];
+      for (const sq of [lm.from, lm.to]) {
+        const d = this.flatPlane(this.texLast, 1.0, 0.145, 1);
+        d.position.set(sqX(sq), 0.145, sqZ(sq));
+        this.lastGroup.add(d);
+      }
+    }
+    if (this.chess.inCheck()) {
+      const ksq = this.kingSquare(this.chess.turn());
+      if (ksq) {
+        this.checkMark.visible = true;
+        this.checkMark.position.set(sqX(ksq), 0.165, sqZ(ksq));
+      }
+    } else this.checkMark.visible = false;
+    const over = this.overInfo();
+    if (upTo === sc.path.length - 1 && over) {
+      this.pendingOver = null;
+      this.over = over;
+      this.replayNote = `终局 · ${over.winner === 'w' ? '白胜' : over.winner === 'b' ? '黑胜' : '和棋'} (${over.reason})`;
+    } else {
+      this.over = null;
+      this.replayNote = upTo === 0 ? sc.tree.title : `${Math.ceil(upTo / 2)}. ${sc.tree.nodes[sc.path[upTo]].move!.note}`;
+    }
+    this.emit();
+  }
+
+  /** Current game-over info for the live position, or null. */
+  private overInfo(): { winner: Side | null; reason: string } | null {
+    if (this.chess.isCheckmate()) return { winner: this.chess.turn() === 'w' ? 'b' : 'w', reason: 'Checkmate' };
+    if (this.chess.isStalemate()) return { winner: null, reason: 'Stalemate' };
+    if (this.chess.isDraw()) return { winner: null, reason: this.chess.isInsufficientMaterial() ? 'Insufficient material' : 'Draw' };
+    return null;
+  }
+
+  /**
+   * 打谱研究：自由走子。着法已存在 → 切换到该分支；否则追加为新变着节点。
+   * 仅更新树/路径，引擎落子由 commitMove 完成（此时棋盘尚未落子）。
+   */
+  private scriptApplyMove(mv: Move) {
+    const sc = this.script!;
+    const tree = sc.tree;
+    if (sc.path.length - 1 > sc.i) sc.path = sc.path.slice(0, sc.i + 1);
+    const cur = sc.path[sc.i];
+    const node = tree.nodes[cur];
+    const exist = node.children.find(c => {
+      const m = tree.nodes[c].move!;
+      return m.from === mv.from && m.to === mv.to && m.promotion === mv.promotion;
+    });
+    let note: string;
+    if (exist !== undefined) {
+      sc.path.push(exist);
+      note = tree.nodes[exist].move!.note;
+    } else {
+      note = mv.san;
+      const idx = tree.nodes.length;
+      tree.nodes.push({ move: { from: mv.from, to: mv.to, promotion: mv.promotion, note }, parent: cur, children: [] });
+      node.children.push(idx);
+      sc.path.push(idx);
+    }
+    sc.i = sc.path.length - 1;
+    sc.playing = false;
+    this.replayNote = `${Math.ceil(sc.i / 2)}. ${note}`;
+  }
+
+  /** 在第 `ply` 着（路径下标）处循环切换到下一个变着分支。 */
+  scriptSwitchBranch(ply: number) {
+    const sc = this.script;
+    if (!sc || this.screen !== 'game') return;
+    if (ply < 1 || ply >= sc.path.length) return;
+    const node = sc.tree.nodes[sc.path[ply]];
+    if (node.children.length <= 1) return;
+    const curChild = ply + 1 < sc.path.length ? sc.path[ply + 1] : -1;
+    let idx = node.children.findIndex(c => c === curChild);
+    idx = (idx + 1) % node.children.length;
+    // 切到目标分支，停留在分支着（不沿该分支延伸到底）
+    const newPath = [...sc.path.slice(0, ply + 1), node.children[idx]];
+    sc.path = newPath;
+    sc.playing = false;
+    this.rebuildFromPath(newPath.length - 1);
+  }
+
+  /** Import PGN (or FEN) text as a new study script. */
+  scriptImportText(text: string): { ok: boolean; error: string | null } {
+    const { tree, error } = parsePgnText(text);
+    if (!tree) return { ok: false, error };
+    this.startGame({ mode: 'local', minutes: 0 });
+    this.script = { tree, path: chessMainline(tree), i: 0, playing: false, main: chessMainline(tree) };
+    this.pendingOver = null;
+    this.replayNote = tree.title;
+    this.emit();
+    return { ok: true, error: null };
+  }
+
+  /** Export the current path as standard PGN text. */
+  scriptExportText(): string {
+    const sc = this.script;
+    if (!sc) return '';
+    return exportPgnText(sc.tree, sc.path);
+  }
+
+  /** Step forward (+1) or backward (-1) by one ply. */
+  scriptStep(dir: number) {
+    const sc = this.script;
+    if (!sc) return;
+    this.scriptGoTo(sc.i + (dir > 0 ? 1 : -1));
+  }
+
+  private scheduleScriptStep(seconds: number) {
+    if (this.scriptTimer) clearTimeout(this.scriptTimer);
+    this.scriptTimer = setTimeout(() => this.scriptTick(), seconds * 1000);
+  }
+
+  private scriptTick() {
+    const sc = this.script;
+    if (!sc || !sc.playing || this.screen !== 'game') return;
+    if (sc.i >= sc.path.length - 1) {
+      sc.playing = false;
+      this.emit();
+      (window as unknown as { __replayDone?: boolean }).__replayDone = true;
+      return;
+    }
+    const cur = sc.path[sc.i];
+    const child = sc.tree.nodes[cur].children[0];
+    if (child === undefined) { sc.playing = false; this.emit(); return; }
+    const sm = sc.tree.nodes[child].move!;
+    const mv = this.chess.moves({ square: sm.from, verbose: true }).find(m => m.to === sm.to && m.promotion === sm.promotion);
+    if (!mv) {
+      console.error('script: scripted move not legal', sm);
+      (window as unknown as { __replayDone?: boolean }).__replayDone = true;
+      return;
+    }
+    // advance the path: if the next move is already on the path just step the index
+    if (sc.i + 1 < sc.path.length && sc.path[sc.i + 1] === child) sc.i++;
+    else { sc.path = [...sc.path.slice(0, sc.i + 1), child]; sc.i = sc.path.length - 1; }
+    this.replayNote = `${Math.ceil(sc.i / 2)}. ${sm.note}`;
+    this.emit();
+    this.doMove(mv, true);
+    this.scheduleScriptStep(2.25);
+  }
+
   applySettings(s: Settings) {
     this.settings = s;
     sfx.enabled = s.sound;
@@ -629,6 +856,7 @@ export class ChessGame {
     const cw = this.capturedTypes(this.capturedW);
     const cb = this.capturedTypes(this.capturedB);
     const diff = cw.reduce((s, t) => s + PIECE_VALUE[t], 0) - cb.reduce((s, t) => s + PIECE_VALUE[t], 0);
+    const sc = this.script;
     this.onState({
       screen: this.screen,
       game: 'chess',
@@ -642,8 +870,24 @@ export class ChessGame {
       clockW: this.clockW,
       clockB: this.clockB,
       over: this.over,
-      canUndo: this.screen === 'game' && !this.over && this.config.mode !== 'showcase' && this.chess.history().length > 0,
-      humanSide: this.config.mode === 'computer' ? 'w' : null
+      canUndo: !this.script && this.screen === 'game' && !this.over && this.config.mode !== 'showcase' && this.chess.history().length > 0,
+      humanSide: this.config.mode === 'computer' ? 'w' : null,
+      replayNote: this.script ? this.replayNote : null,
+      scriptInfo: sc ? {
+        title: sc.tree.title,
+        source: sc.tree.source,
+        desc: sc.tree.desc,
+        result: sc.tree.result,
+        total: sc.path.length - 1,
+        index: sc.i,
+        playing: sc.playing,
+        onMain: sc.main.includes(sc.path[sc.i]),
+        over: !!this.over || !!this.pendingOver,
+        notes: sc.path.slice(1).map(n => sc.tree.nodes[n].move!.note),
+        branches: sc.path.map(n => sc.tree.nodes[n].children.length),
+        custom: sc.tree.custom,
+        game: 'chess'
+      } : null
     });
   }
 
@@ -685,6 +929,16 @@ export class ChessGame {
     } else {
       this.controls.autoRotate = this.screen === 'menu';
       this.controls.update();
+    }
+
+    // slow cinematic push-in during script playback
+    if (this.script?.playing && this.screen === 'game' && !this.swing) {
+      const off = this.camera.position.clone().sub(this.controls.target);
+      const d = off.length();
+      if (d > 9.6) {
+        off.setLength(Math.max(9.6, d - dt * 0.16));
+        this.camera.position.copy(this.controls.target).add(off);
+      }
     }
 
     // clocks

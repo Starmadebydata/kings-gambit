@@ -32,8 +32,8 @@ export interface ScriptInfo {
   branches: number[]; // children count per path node (branches[i] = path node i); >1 means a variation fork
   onMain: boolean; // current ply is on the mainline (false = standing on a variation)
   custom: boolean; // imported / board-study script (no famous-game library backing)
-  /** 棋种：围棋打谱时为 'go'（象棋不设，保持向后兼容）。 */
-  game?: 'go';
+  /** 棋种：围棋打谱时为 'go'，国际象棋为 'chess'（象棋不设，保持向后兼容）。 */
+  game?: 'go' | 'chess';
 }
 
 export interface HudState {
