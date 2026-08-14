@@ -59,6 +59,13 @@ src/
 - **名局棋谱**：主菜单选择棋种 → 「名局棋谱」区 → 打谱（逐步研究）或自动演示（视频式回放）
 - **棋谱浏览器**：点击着法跳转、⏮ ◀ ▶ ▶| ⏭ 控制、分支可切换、可导入传统记谱文本、可导出当前路径
 
+## 开发回顾 / Development Retrospective
+
+从一枚棋子到六张棋盘的完整开发历程,含截图、动效 GIF 与对局视频:
+
+- 中文:[开发回顾.md](开发回顾.md)
+- English: [DEVLOG.md](DEVLOG.md)
+
 ## License
 
 [MIT](LICENSE) © 2026 Starmadebydata
