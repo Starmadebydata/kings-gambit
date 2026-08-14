@@ -495,6 +495,22 @@ button {
 .sbtn-set.gold:hover { filter: brightness(1.1); }
 
 /* ---------- script import / export modals ---------- */
+/* rules modal — how-to-play briefing shown on first entry per game kind */
+.rules-modal { width: 560px; max-width: 92vw; }
+.rules-head-title { display: inline-flex; align-items: center; gap: 7px; }
+.rules-tagline { font-size: 11px; color: #9b8a63; font-style: italic; letter-spacing: 0.04em; }
+.rules-body {
+  max-height: 58vh; overflow-y: auto; padding-right: 6px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.rules-section h4 {
+  font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: #e9c96f; margin-bottom: 6px;
+}
+.rules-section ul { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+.rules-section li { font-size: 11.5px; line-height: 1.6; color: #c9b98f; padding-left: 14px; position: relative; }
+.rules-section li::before { content: '◆'; position: absolute; left: 0; top: 1px; font-size: 8px; color: #7a6538; }
+
 .script-modal { width: 460px; }
 .script-modal-tip { font-size: 10.5px; line-height: 1.5; color: #9b8a63; }
 .script-textarea {

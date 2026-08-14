@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { ChessGame } from './game/Chess3D';
 import { XqGame } from './game/Xq3D';
 import { GoGame3D } from './game/Go3D';
+import { ShogiGame } from './game/Shogi3D';
+import { CheckersGame } from './game/Checkers3D';
+import { ReversiGame } from './game/Reversi3D';
 import { FAMOUS_GAMES, type FamousGame } from './game/famousGame';
 import { CHESS_FAMOUS_GAMES, type ChessFamousGame } from './game/chessFamousGames';
 import { GO_FAMOUS_GAMES, type GoFamousGame } from './game/goFamousGames';
@@ -9,11 +12,13 @@ import { GameConfig, GameKind, HudState, Settings } from './game/types';
 import { MainMenu } from './ui/MainMenu';
 import { Hud } from './ui/Hud';
 import { GameOverModal, ImportModal, ExportModal, SettingsModal } from './ui/Modals';
+import { RulesModal } from './ui/RulesModal';
 
 const DEFAULT_SETTINGS: Settings = { cameraSwing: true, sound: true, coords: true, legalMoves: true };
 const DEFAULT_CONFIG: GameConfig = { mode: 'computer', minutes: 0, level: 2 };
 const LS_SETTINGS = 'kg-settings';
 const LS_CONFIG = 'kg-config';
+const LS_RULES = 'kg-rules-seen';
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -29,7 +34,7 @@ function save(key: string, value: unknown) {
 
 export default function App() {
   const hostRef = useRef<HTMLDivElement>(null);
-  const gameRef = useRef<ChessGame | XqGame | GoGame3D | null>(null);
+  const gameRef = useRef<ChessGame | XqGame | GoGame3D | ShogiGame | CheckersGame | ReversiGame | null>(null);
   const kindRef = useRef<GameKind>('chess');
   const settingsRef = useRef<Settings>(load(LS_SETTINGS, DEFAULT_SETTINGS));
   const [hud, setHud] = useState<HudState | null>(null);
@@ -41,6 +46,16 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+
+  // 每种棋首次进入对局时展示玩法说明（localStorage 记忆，书卷按钮可随时重看）
+  const maybeShowRules = (k: GameKind) => {
+    const seen = load<Partial<Record<GameKind, boolean>>>(LS_RULES, {});
+    if (!seen[k]) {
+      setShowRules(true);
+      save(LS_RULES, { ...seen, [k]: true });
+    }
+  };
 
   const createGame = (k: GameKind) => {
     gameRef.current?.dispose();
@@ -48,7 +63,13 @@ export default function App() {
       ? new ChessGame(hostRef.current!, setHud)
       : k === 'xiangqi'
         ? new XqGame(hostRef.current!, setHud)
-        : new GoGame3D(hostRef.current!, setHud);
+        : k === 'shogi'
+          ? new ShogiGame(hostRef.current!, setHud)
+          : k === 'checkers'
+            ? new CheckersGame(hostRef.current!, setHud)
+            : k === 'reversi'
+              ? new ReversiGame(hostRef.current!, setHud)
+              : new GoGame3D(hostRef.current!, setHud);
     g.applySettings(settingsRef.current);
     gameRef.current = g;
     kindRef.current = k;
@@ -112,7 +133,7 @@ export default function App() {
             kind={kind}
             onConfig={setConfig}
             onKind={onKind}
-            onStart={() => g().startGame(config)}
+            onStart={() => { g().startGame(config); maybeShowRules(kind); }}
             games={FAMOUS_GAMES}
             chessGames={CHESS_FAMOUS_GAMES}
             goGames={GO_FAMOUS_GAMES}
@@ -147,6 +168,8 @@ export default function App() {
             onSetupReset={() => (gameRef.current as XqGame).setupReset()}
             onSetupStudy={() => (gameRef.current as XqGame).setupStudy()}
             onSetupExit={() => (gameRef.current as XqGame).setupExit()}
+            onRules={() => setShowRules(true)}
+            onHome={() => g().toMenu()}
           />
         )}
         {/* no game-over modal in script mode — the result is announced in the replay note */}
@@ -165,6 +188,7 @@ export default function App() {
             onClose={() => setShowSettings(false)}
           />
         )}
+        {showRules && <RulesModal kind={kind} onClose={() => setShowRules(false)} />}
         {showImport && (
           <ImportModal
             game={kindRef.current}

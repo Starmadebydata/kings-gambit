@@ -36,7 +36,7 @@ export function MainMenu(props: {
   return (
     <div className="menu-wrap">
       <h1 className="title"><IconCrown size={30} /> King's Gambit</h1>
-      <p className="tagline">{kind === 'chess' ? 'Chess is a battlefield — command it.' : kind === 'xiangqi' ? '楚河漢界 · 兩軍對壘 — the river divides two kingdoms.' : '纵横十九道 · 方寸天地间 — the board is a universe.'}</p>
+      <p className="tagline">{kind === 'chess' ? 'Chess is a battlefield — command it.' : kind === 'xiangqi' ? '楚河漢界 · 兩軍對壘 — the river divides two kingdoms.' : kind === 'shogi' ? '一手成金 · 敗駒復起 — every fallen piece fights again.' : kind === 'checkers' ? '连跳破阵 · 到底成王 — leap, capture, and crown.' : kind === 'reversi' ? '夹线翻覆 · 角落定乾坤 — every line turns the tide.' : '纵横十九道 · 方寸天地间 — the board is a universe.'}</p>
       <div className="menu-panel">
         <div className="tabs kind">
           <button className={'tab' + (kind === 'chess' ? ' active' : '')} onClick={() => onKind('chess')}>
@@ -47,6 +47,15 @@ export function MainMenu(props: {
           </button>
           <button className={'tab' + (kind === 'go' ? ' active' : '')} onClick={() => onKind('go')}>
             <span className="kai">⚫ 围棋 Go</span>
+          </button>
+          <button className={'tab' + (kind === 'shogi' ? ' active' : '')} onClick={() => onKind('shogi')}>
+            <span className="kai">桂 将棋 Shogi</span>
+          </button>
+          <button className={'tab' + (kind === 'checkers' ? ' active' : '')} onClick={() => onKind('checkers')}>
+            <span>⛃ Checkers</span>
+          </button>
+          <button className={'tab' + (kind === 'reversi' ? ' active' : '')} onClick={() => onKind('reversi')}>
+            <span>◐ Reversi</span>
           </button>
         </div>
         <div className="tabs">

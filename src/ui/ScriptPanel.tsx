@@ -16,6 +16,7 @@ export function ScriptPanel(props: {
   onBranch: (ply: number) => void;
   onImport: () => void;
   onExport: () => void;
+  onHome?: () => void;
 }) {
   const { info } = props;
   const listRef = useRef<HTMLDivElement>(null);
@@ -69,6 +70,9 @@ export function ScriptPanel(props: {
         <div className="script-tools">
           {!isGo && <button className="stool" title="导入传统记谱文本" onClick={props.onImport}>导入</button>}
           <button className="stool" title="导出当前打谱路径为传统记谱" onClick={props.onExport}>导出</button>
+          {props.onHome && (
+            <button className="stool" title="返回主页" onClick={props.onHome}>主页</button>
+          )}
           <button className="script-close" title="退出棋谱" onClick={props.onExit}>✕</button>
         </div>
       </div>

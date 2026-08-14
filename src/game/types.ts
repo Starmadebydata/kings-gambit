@@ -1,7 +1,7 @@
 export type Side = 'w' | 'b';
 export type PieceType = 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
 export type Mode = 'computer' | 'local' | 'showcase';
-export type GameKind = 'chess' | 'xiangqi' | 'go';
+export type GameKind = 'chess' | 'xiangqi' | 'go' | 'shogi' | 'checkers' | 'reversi';
 /** AI 难度：1=Easy，2=Medium，3=Hard。 */
 export type Level = 1 | 2 | 3;
 
@@ -51,6 +51,8 @@ export interface HudState {
   over: { winner: Side | null; reason: string } | null;
   canUndo: boolean;
   humanSide: Side | null;
+  /** 通用单行提示（如黑白棋 pass 通告），非打谱语境。 */
+  note?: string | null;
   replayNote?: string | null;
   scriptInfo?: ScriptInfo | null;
   setup?: boolean; // board-editing (setup) mode active

@@ -537,3 +537,88 @@ export const PIECE_HEIGHT: Record<PieceType, number> = {
 export const XQ_HEIGHT: Record<XqType, number> = {
   p: 0.7, h: 1.0, r: 1.15, c: 0.8, a: 0.92, e: 0.95, k: 1.15
 };
+
+/* ---------- shogi: pentagonal wooden koma ---------- */
+
+/** 五角駒胎（五角柱，尖端朝 -z）；字面纹理贴在顶面，阵营由旋转区分。 */
+export function buildShogiModel(charTex: THREE.Texture | null, size = 1): THREE.Group {
+  const g = new THREE.Group();
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0.38);
+  shape.lineTo(0.24, 0.1);
+  shape.lineTo(0.3, -0.34);
+  shape.lineTo(-0.3, -0.34);
+  shape.lineTo(-0.24, 0.1);
+  shape.closePath();
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: 0.11, bevelEnabled: true, bevelThickness: 0.016, bevelSize: 0.018, bevelSegments: 2
+  });
+  geo.rotateX(-Math.PI / 2);
+  const body = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xd9b98c, roughness: 0.58, metalness: 0.05 }));
+  body.castShadow = true;
+  g.add(body);
+  if (charTex) {
+    const top = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.46, 0.58),
+      new THREE.MeshBasicMaterial({ map: charTex, transparent: true, depthWrite: false })
+    );
+    top.rotation.x = -Math.PI / 2;
+    top.position.y = 0.145;
+    top.renderOrder = 1;
+    g.add(top);
+  }
+  g.scale.setScalar(size);
+  return g;
+}
+
+/** 西洋跳棋：双层圆饼；升王后顶上加一圈金色尖冠。 */
+export function buildCheckerModel(side: Side, king: boolean): THREE.Group {
+  const g = new THREE.Group();
+  const p = PAL[side];
+  const body = mat(side === 'w' ? 0xe8e2d2 : 0x2c2733, 0.5, 0.15);
+  const band = mat(side === 'w' ? p.gold : 0x8a2f28, 0.6, 0.3);
+  add(g, cyl(0.36, 0.38, 0.1, 18), body, 0, 0.05);
+  add(g, cyl(0.3, 0.34, 0.09, 18), body, 0, 0.145);
+  add(g, cyl(0.365, 0.365, 0.03, 18), band, 0, 0.095);
+  if (king) g.add(buildCheckerCrown());
+  return g;
+}
+
+/** 独立的王冠组件（升王动效时动态加装）。 */
+export function buildCheckerCrown(): THREE.Group {
+  const g = new THREE.Group();
+  const gold = mat(0xd9b45c, 0.35, 0.8);
+  add(g, cyl(0.2, 0.22, 0.07, 10), gold, 0, 0.215);
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    add(g, cone(0.045, 0.13, 5), gold, Math.cos(a) * 0.17, 0.29, Math.sin(a) * 0.17);
+  }
+  add(g, sph(0.05), gold, 0, 0.3);
+  return g;
+}
+
+/** 黑白棋：单层光滑圆盘，中央微凹圆环；白色象牙 / 黑色曜石。 */
+export function buildReversiModel(side: Side): THREE.Group {
+  const g = new THREE.Group();
+  const body = mat(side === 'w' ? 0xf0ead9 : 0x1d1a24, side === 'w' ? 0.42 : 0.3, side === 'w' ? 0.05 : 0.35);
+  const rim = mat(side === 'w' ? 0xcfc7ae : 0x3a3448, 0.5, 0.2);
+  // 双凸圆润立体圆盘：底部斜切 → 中部主体 → 顶部圆拱
+  add(g, cyl(0.36, 0.42, 0.05, 24), body, 0, 0.025);
+  add(g, cyl(0.32, 0.36, 0.05, 24), body, 0, 0.075);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.32, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), body);
+  dome.scale.y = 0.35;
+  dome.position.y = 0.1;
+  dome.castShadow = true;
+  g.add(dome);
+  // 中缝环槽饰带
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.355, 0.02, 8, 28), rim);
+  band.rotation.x = Math.PI / 2;
+  band.position.y = 0.05;
+  g.add(band);
+  // 顶面同心环浮雕
+  const crest = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.016, 8, 24), rim);
+  crest.rotation.x = Math.PI / 2;
+  crest.position.y = 0.19;
+  g.add(crest);
+  return g;
+}

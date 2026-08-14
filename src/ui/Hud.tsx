@@ -3,7 +3,7 @@ import { shieldDataUrl } from '../game/textures';
 import { ScriptPanel } from './ScriptPanel';
 import {
   IconUndo, IconFlag, IconSwords, IconSound, IconMute, IconExpand,
-  IconFlip, IconGrid, IconGear
+  IconFlip, IconGrid, IconGear, IconBook, IconHome
 } from './Icons';
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -32,6 +32,8 @@ export function Hud(props: {
   onSetupReset?: () => void;
   onSetupStudy?: () => void;
   onSetupExit?: () => void;
+  onRules?: () => void;
+  onHome?: () => void;
 }) {
   const { hud, settings } = props;
   const scriptMode = !!hud.scriptInfo;
@@ -76,12 +78,19 @@ export function Hud(props: {
           onBranch={props.onScriptBranch!}
           onImport={props.onScriptImport!}
           onExport={props.onScriptExport!}
+          onHome={props.onHome}
         />
       ) : (
         <div className="toolbar">
+          {props.onHome && (
+            <button className="tool" title="Main Menu · 返回主页" onClick={props.onHome}><IconHome /></button>
+          )}
           <button className="tool" title="Undo" disabled={!hud.canUndo} onClick={props.onUndo}><IconUndo /></button>
           <button className="tool danger" title="Resign" onClick={props.onResign}><IconFlag /></button>
           <button className="tool" title="New battle" onClick={props.onNewGame}><IconSwords /></button>
+          {props.onRules && (
+            <button className="tool" title="How to play · 玩法说明" onClick={props.onRules}><IconBook /></button>
+          )}
           {hud.game === 'go' && props.onPass && (
             <button className="tool" title="Pass（虚着）" onClick={props.onPass}><span className="tool-word">PASS</span></button>
           )}
@@ -111,6 +120,8 @@ export function Hud(props: {
 
       {hud.replayNote ? (
         <div className="replay-note"><span className="replay-live">{hud.setup ? '● 摆盘' : hud.scriptInfo?.custom ? '● 打谱' : '● 名局回放'}</span>{hud.replayNote}</div>
+      ) : hud.note ? (
+        <div className="replay-note"><span className="replay-live">● 提示</span>{hud.note}</div>
       ) : (
         <div className="hint">Drag to orbit · Scroll to zoom · Click a piece to command it</div>
       )}

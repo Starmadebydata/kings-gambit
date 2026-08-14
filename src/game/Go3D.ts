@@ -749,7 +749,7 @@ export class GoGame3D {
   private loop = () => {
     if (this.disposed) return;
     this.raf = requestAnimationFrame(this.loop);
-    const dt = Math.min(this.clock.getDelta(), 0.05);
+    const dt = Math.min(this.clock.getDelta(), 0.25);
     this.time += dt;
     const t = this.time;
 
